@@ -1,13 +1,13 @@
-# -*-coding:utf8-*-
+# -*-coding2222:utf8-*-
 """
 author:zhiyuan
 date:20190316
 test the performance of the model in the test data for gbdt and gbdt_lr
 """
-from __future__ import division
+from __future__ import division #防止整数的除法结果转换为整数，而是变成精确的浮点数
 import numpy as np
 import xgboost as xgb
-import Tree.data.train as TA
+import production.train as TA
 from scipy.sparse import csc_matrix
 import math
 import sys
@@ -28,23 +28,26 @@ def get_test_data(test_file, feature_num_file):
     return test_feature, test_label
 
 
+# 打分函数
 def predict_by_tree(test_feature, tree_model):
     """
     predict by gbdt model
     """
-    predict_list = tree_model.predict(xgb.DMatrix(test_feature))
+    predict_list = tree_model.predict(xgb.DMatrix(test_feature)) #调用GBDT模型预测函数
     return predict_list
 
-
+#GBDT和LR混合模型打分函数
 def predict_by_lr_gbdt(test_feature, mix_tree_model, mix_lr_coef, tree_info):
     """
+    mix_lr_coef: LR模型参数列表（和GBDT模型输出的特征维数相同）
     predict by mix model
     """
-    tree_leaf = mix_tree_model.predict(xgb.DMatrix(test_feature), pred_leaf = True)
+    tree_leaf = mix_tree_model.predict(xgb.DMatrix(test_feature), pred_leaf = True) #得到每个样本在GBDT模型中落在哪个节点上
     (tree_depth, tree_num, step_size) = tree_info
-    total_feature_list = TA.get_gbdt_and_lr_feature(tree_leaf, tree_depth=tree_depth, tree_num=tree_num)
+    total_feature_list = TA.get_gbdt_and_lr_feature(tree_leaf, tree_depth=tree_depth, tree_num=tree_num) #特征通过GBDT模型编码
+    # 上面得到的特征编码是稀疏矩阵格式的，需要转换为便于计算的CSC格式
     result_list = np.dot(csc_matrix(mix_lr_coef), total_feature_list.tocsc().T).toarray()[0]
-    sigmoid_ufunc = np.frompyfunc(sigmoid, 1, 1)
+    sigmoid_ufunc = np.frompyfunc(sigmoid, 1, 1) # 可以将计算单个值的函数转换为一个能对数组中每个元素计算的 ufunc 函数。
     return sigmoid_ufunc(result_list)
 
 
@@ -110,14 +113,14 @@ def run_check_core(test_feature, test_label, model, score_func):
     Args:
         test_feature:
         test_label:
-        model: tree model
+        model: tree model GBDT 模型实例
         score_func: use different model to predict
     """
     predict_list = score_func(test_feature, model)
     get_auc(predict_list, test_label)
     get_accuary(predict_list, test_label)
 
-
+# GBDT 模型在测试数据上的表现测试
 def run_check(test_file, tree_model_file, feature_num_file):
     """
     Args:
@@ -126,9 +129,8 @@ def run_check(test_file, tree_model_file, feature_num_file):
         feature_num_file:file to store feature num
     """
     test_feature, test_label = get_test_data(test_file, feature_num_file)
-    tree_model = xgb.Booster(model_file=tree_model_file)
-    run_check_core(test_feature, test_label, tree_model, predict_by_tree)
-
+    tree_model = xgb.Booster(model_file=tree_model_file) #加载 GBDT 模型
+    run_check_core(test_feature, test_label, tree_model, predict_by_tree) #predict_by_tree:打分函数
 
 def run_check_lr_gbdt_core(test_feature, test_label, mix_tree_model, mix_lr_coef, tree_info, score_func):
     """
@@ -136,8 +138,8 @@ def run_check_lr_gbdt_core(test_feature, test_label, mix_tree_model, mix_lr_coef
     Args:
         test_feature:
         test_label:
-        mix_tree_model:
-        mix_lr_coef:
+        mix_tree_model: GBDT树模型实例
+        mix_lr_coef: LR模型参数列表
         tree_info:tree_depth, tree_num, step_size
         score_func: different score_func
     """
@@ -146,7 +148,7 @@ def run_check_lr_gbdt_core(test_feature, test_label, mix_tree_model, mix_lr_coef
     get_accuary(predict_list, test_label)
 
 
-
+# GBDT和LR混合模型在测试数据上的表现测试
 def run_check_lr_gbdt(test_file, tree_mix_model_file, lr_coef_mix_model_file, feature_num_file):
     """
     Args:
@@ -156,30 +158,28 @@ def run_check_lr_gbdt(test_file, tree_mix_model_file, lr_coef_mix_model_file, fe
         feature_num_file:
     """
     test_feature, test_label = get_test_data(test_file, feature_num_file)
-    mix_tree_model = xgb.Booster(model_file=tree_mix_model_file)
-    mix_lr_coef = np.genfromtxt(lr_coef_mix_model_file, dtype=np.float32, delimiter=",")
+    mix_tree_model = xgb.Booster(model_file=tree_mix_model_file) #加载GBDT模型文件
+    mix_lr_coef = np.genfromtxt(lr_coef_mix_model_file, dtype=np.float32, delimiter=",") #加载LR模型参数
     tree_info = TA.get_mix_model_tree_info()
     run_check_lr_gbdt_core(test_feature, test_label, mix_tree_model, \
                            mix_lr_coef, tree_info, predict_by_lr_gbdt)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 4:
-        test_file = sys.argv[1]
-        tree_model = sys.argv[2]
-        feature_num_file = sys.argv[3]
-        run_check(test_file, tree_model, feature_num_file)
-    elif len(sys.argv) == 5:
-        test_file = sys.argv[1]
-        tree_mix_model = sys.argv[2]
-        lr_coef_mix_model = sys.argv[3]
-        feature_num_file = sys.argv[4]
-        run_check_lr_gbdt(test_file, tree_mix_model, lr_coef_mix_model,  feature_num_file)
-    else:
-        print ("check gbdt model usage: python xx.py test_file  tree_model feature_num_file")
-        print ("check lr_gbdt model usage: python xx.py test_file tree_mix_model lr_coef_mix_model feature_num_file")
-        sys.exit()
-    """
-    run_check("../data/test_file","../data/xgb.model", "../data/feature_num")
-    run_check_lr_gbdt("../data/test_file", "../data/xgb_mix_model", "../data/lr_coef_mix_model", "../dta/feature_num")
-    """
+    # if len(sys.argv) == 4:
+    #     test_file = sys.argv[1]
+    #     tree_model = sys.argv[2]
+    #     feature_num_file = sys.argv[3]
+    #     run_check(test_file, tree_model, feature_num_file)
+    # elif len(sys.argv) == 5:
+    #     test_file = sys.argv[1]
+    #     tree_mix_model = sys.argv[2]
+    #     lr_coef_mix_model = sys.argv[3]
+    #     feature_num_file = sys.argv[4]
+    #     run_check_lr_gbdt(test_file, tree_mix_model, lr_coef_mix_model,  feature_num_file)
+    # else:
+    #     print ("check gbdt model usage: python xx.py test_file  tree_model feature_num_file")
+    #     print ("check lr_gbdt model usage: python xx.py test_file tree_mix_model lr_coef_mix_model feature_num_file")
+    #     sys.exit()
+    # run_check("../data/test_file","../data/xgb.model", "../data/feature_num") # 测试代码：测试GBDT模型效果
+    run_check_lr_gbdt("../data/test_file", "../data/xgb_mix_model", "../data/lr_coef_mix_model", "../dta/feature_num") #测试代码：测试GBDT和LR混合模型性能

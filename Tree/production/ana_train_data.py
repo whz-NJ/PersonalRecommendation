@@ -1,8 +1,9 @@
-# -*-coding:utf8-*-
 """
 author:zhiyuan
 date:20190316
 feature selection and data selection for tree model
+树模型不需要对连续特征离散化，只需要对离散特征进行One-Hot编码，所以这里大部分代码和LR模型使用的代码相同。
+另外树模型不需要组合特征。
 """
 import pandas as pd
 import numpy as np
@@ -21,10 +22,10 @@ def get_input(input_train_file, input_test_file):
     """
     dtype_dict = {"age": np.int32,
                   "education-num": np.int32,
-                  "capital - gain": np.int32,
-                  "capital - loss": np.int32,
-                  "hours - per - week": np.int32}
-    use_list = range(15)
+                  "capital-gain": np.int32,
+                  "capital-loss": np.int32,
+                  "hours-per-week": np.int32}
+    use_list = list(range(15))
     use_list.remove(2)
     train_data_df = pd.read_csv(input_train_file, sep=",", header=0, dtype=dtype_dict, na_values="?", usecols=use_list)
     train_data_df = train_data_df.dropna(axis=0, how="any")
@@ -63,7 +64,7 @@ def dict_trans(dict_in):
     """
     output_dict = {}
     index = 0
-    for zuhe in sorted(dict_in.iteritems(), key = operator.itemgetter(1), reverse= True):
+    for zuhe in sorted(dict_in.items(), key = operator.itemgetter(1), reverse= True):
         output_dict[zuhe[0]] = index
         index += 1
     return output_dict
@@ -165,15 +166,16 @@ def ana_train_data(input_train_data, input_test_data, out_train_file, out_test_f
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 6:
-        print ("usage: python xx.py origin_train origin_test train_file test_file feature_num_file")
-        sys.exit()
-    else:
-        origin_train = sys.argv[1]
-        origin_test = sys.argv[2]
-        train_file = sys.argv[3]
-        test_file = sys.argv[4]
-        feature_num_file = sys.argv[5]
-        ana_train_data(origin_train, origin_test, train_file, test_file, feature_num_file)
+    # if len(sys.argv) < 6:
+    #     print ("usage: python xx.py origin_train origin_test train_file test_file feature_num_file")
+    #     sys.exit()
+    # else:
+    #     origin_train = sys.argv[1]
+    #     origin_test = sys.argv[2]
+    #     train_file = sys.argv[3]
+    #     test_file = sys.argv[4]
+    #     feature_num_file = sys.argv[5]
+    #     ana_train_data(origin_train, origin_test, train_file, test_file, feature_num_file)
 
-    #ana_train_data("../data/train.txt", "../data/test.txt", "../data/train_file", "../data/test_file", "../data/feature_num")
+    ana_train_data("../data/train.txt", "../data/test.txt", "../data/train_file", "../data/test_file", "../data/feature_num") # 测试代码
+
