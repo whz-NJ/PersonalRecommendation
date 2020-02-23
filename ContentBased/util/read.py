@@ -1,15 +1,16 @@
-#-*-coding:utf8-*-
+#-*-coding2222:utf8-*-
 """
 author:zhiyuan
 date:2019
 some util function
 """
 
+# 防止将两个整数除时，取整的处理
 from __future__ import division
 import os
 import operator
 
-
+#读取用户评分文件，得到电影的平均评分
 def get_ave_score(input_file):
     """
     Args:
@@ -41,15 +42,16 @@ def get_ave_score(input_file):
         ave_score[itemid] = round(record[itemid][0]/record[itemid][1], 3)
     return ave_score
 
-
+#读取item类别信息
 def get_item_cate(ave_score, input_file):
     """
     Args:
         ave_score: a dict , key itemid value rating score
         input_file: item info file
     Return:
+        两个dict 对象：
         a dict: key itemid value a dict, key: cate value:ratio
-        a dict: key cate value [itemid1, itemid2, itemid3]
+        a dict: key cate value [itemid1, itemid2, itemid3] （category对应item的倒排）
     """
 
     if not os.path.exists(input_file):
@@ -81,12 +83,14 @@ def get_item_cate(ave_score, input_file):
             if cate not in record:
                 record[cate] = {}
             itemid_rating_score = ave_score.get(itemid, 0)
-            record[cate][itemid] = itemid_rating_score
+            record[cate][itemid] = itemid_rating_score #category对Item的倒排，值为之前用户给该item评分均值
     for cate in record:
         if cate not in cate_item_sort:
             cate_item_sort[cate] = []
+        # operator.itemgetter(1) 取1，表示按照Item的评分均值，reverse=True，表示降序排列
         for zuhe in sorted(record[cate].items(), key = operator.itemgetter(1), reverse=True)[:topk]:
             cate_item_sort[cate].append(zuhe[0])
+            # cate_item_sort[cate].append(zuhe[0] + "_" + str(zuhe[1])) #测试代码
     return item_cate, cate_item_sort
 
 
@@ -115,3 +119,10 @@ def get_latest_timestamp(input_file):
     fp.close()
     print (latest)
 
+if __name__ == "__main__":
+    ave_score = get_ave_score("../data/ratings.txt")
+    # print(len(ave_score))
+    # print(ave_score["31"])
+    item_cate, cate_item_sort = get_item_cate(ave_score, "../data/movies.txt")
+    print(item_cate["1"])
+    print(cate_item_sort["Children"])
